@@ -54,7 +54,7 @@ namespace StorybrewEditor.ScreenLayers.Util
                 });
             })
             { Name = $"Loading ({title}, {action.Method.Name})", IsBackground = true, };
-            thread.SetApartmentState(ApartmentState.STA);
+            if (OperatingSystem.IsWindows()) thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
 
             base.Load();

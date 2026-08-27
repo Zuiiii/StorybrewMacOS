@@ -1,7 +1,6 @@
 ﻿using BrewLib.Audio;
 using BrewLib.Graphics;
 using BrewLib.Util;
-using Microsoft.Win32;
 using OpenTK;
 using OpenTK.Graphics;
 using StorybrewEditor.Util;
@@ -18,7 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using StorybrewEditor.Platform;
 
 namespace StorybrewEditor
 {
@@ -45,6 +44,8 @@ namespace StorybrewEditor
         public static void Main(string[] args)
         {
             mainThreadId = Thread.CurrentThread.ManagedThreadId;
+            ConfigureNativeLibraries();
+            ConfigureWorkingDirectory();
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             //Environment.CurrentDirectory = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
 
@@ -53,6 +54,15 @@ namespace StorybrewEditor
 
             setupLogging();
             startEditor();
+        }
+
+        private static void ConfigureWorkingDirectory()
+        {
+            if (!OperatingSystem.IsMacOS()) return;
+            var applicationData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Storybrew");
+            Directory.CreateDirectory(applicationData);
+            Environment.CurrentDirectory = applicationData;
         }
 
         private static bool handleArguments(string[] args)
@@ -92,7 +102,7 @@ namespace StorybrewEditor
                 Trace.WriteLine($"{getOSVersion()} / {window.WindowInfo}");
                 Trace.WriteLine($"graphics mode: {window.Context.GraphicsMode}");
 
-                window.Icon = new Icon(typeof(Program), "icon.ico");
+                if (OperatingSystem.IsWindows()) window.Icon = new Icon(typeof(Program), "icon.ico");
                 window.Resize += (sender, e) =>
                 {
                     editor.Draw(1);
@@ -108,12 +118,6 @@ namespace StorybrewEditor
 
         private static string getOSVersion()
         {
-            try
-            {
-                using (var registryKey = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows NT\\CurrentVersion"))
-                    return (string)registryKey.GetValue("ProductName");
-            }
-            catch { }
             return Environment.OSVersion.ToString();
         }
 
@@ -151,7 +155,11 @@ namespace StorybrewEditor
 #else
             var contextFlags = GraphicsContextFlags.ForwardCompatible;
 #endif
-            var primaryScreenArea = Screen.PrimaryScreen.WorkingArea;
+            // Storybrew's renderer intentionally uses the OpenGL 2 compatibility profile.
+            // macOS turns ForwardCompatible into a 4.1 core context, where legacy batching
+            // calls such as fixed-function state setup are invalid.
+            if (OperatingSystem.IsMacOS()) contextFlags = (GraphicsContextFlags)0;
+            var primaryScreenArea = displayDevice.Bounds;
 
             int windowWidth = 1366, windowHeight = 768;
             if (windowHeight >= primaryScreenArea.Height)
@@ -179,7 +187,7 @@ namespace StorybrewEditor
 
         private static AudioManager createAudioManager(GameWindow window)
         {
-            var audioManager = new AudioManager(window.GetWindowHandle())
+            var audioManager = new AudioManager(OperatingSystem.IsWindows() ? window.GetWindowHandle() : IntPtr.Zero)
             {
                 Volume = Settings.Volume,
             };
@@ -394,7 +402,9 @@ namespace StorybrewEditor
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => logError((Exception)e.ExceptionObject, crashPath, "crash", true);
 
             Trace.WriteLine($"CLR {Environment.Version} / {RuntimeEnvironment.GetRuntimeDirectory()}");
-            foreach (var p in Environment.GetEnvironmentVariable("path").Split(';').Where(p => p.Contains("\\dotnet\\")))
+            foreach (var p in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => p.Contains("dotnet", StringComparison.OrdinalIgnoreCase)))
                 Trace.WriteLine($"  dotnet path {p}");
             Trace.WriteLine("");
         }
@@ -421,8 +431,7 @@ namespace StorybrewEditor
 
                     if (show)
                     {
-                        var result = MessageBox.Show($"An error occured:\n\n{e.Message} ({e.GetType().Name})\n\nClick Ok if you want to receive and invitation to a Discord server where you can get help with this problem.", FullName, MessageBoxButtons.OKCancel);
-                        if (result == DialogResult.OK) Process.Start(new ProcessStartInfo() { FileName = DiscordUrl, UseShellExecute = true });
+                        PlatformServices.ShowError(FullName, $"An error occurred:\n\n{e.Message} ({e.GetType().Name})\n\nSee the log for details.");
                     }
                 }
                 catch (Exception e2)
@@ -434,6 +443,38 @@ namespace StorybrewEditor
                     insideErrorHandler = false;
                 }
             }
+        }
+
+        private static void ConfigureNativeLibraries()
+        {
+            NativeLibrary.SetDllImportResolver(typeof(GameWindow).Assembly, ResolveNativeLibrary);
+            NativeLibrary.SetDllImportResolver(typeof(ClipboardHelper).Assembly, ResolveNativeLibrary);
+            Trace.WriteLine($"OS architecture: {RuntimeInformation.OSArchitecture}");
+            Trace.WriteLine($"Process architecture: {RuntimeInformation.ProcessArchitecture}");
+            Trace.WriteLine($"Runtime identifier: {RuntimeInformation.RuntimeIdentifier}");
+            if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture != Architecture.Arm64)
+                throw new PlatformNotSupportedException("The macOS build requires a native arm64 .NET process; Rosetta is not supported.");
+        }
+
+        private static IntPtr ResolveNativeLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+        {
+            if (libraryName is "opengl32.dll" or "OpenGL")
+                return NativeLibrary.Load("/System/Library/Frameworks/OpenGL.framework/OpenGL");
+            if (libraryName.Contains("SDL2", StringComparison.OrdinalIgnoreCase))
+            {
+                var candidates = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, "libSDL2-2.0.0.dylib"),
+                    Path.Combine(AppContext.BaseDirectory, "libSDL2.dylib"),
+                    "/opt/homebrew/lib/libSDL2-2.0.0.dylib",
+                    "/opt/homebrew/lib/libSDL2.dylib",
+                    "/usr/local/lib/libSDL2-2.0.0.dylib",
+                    "/usr/local/lib/libSDL2.dylib",
+                };
+                foreach (var candidate in candidates)
+                    if (File.Exists(candidate) && NativeLibrary.TryLoad(candidate, out var handle)) return handle;
+            }
+            return IntPtr.Zero;
         }
 
         public static void Report(string type, Exception e)

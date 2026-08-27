@@ -276,9 +276,13 @@ namespace StorybrewEditor.Util
                 if (!localThread.Join(millisecondsTimeout))
                 {
                     Trace.WriteLine($"Aborting thread {localThread.Name}.");
-                    IntPtr handle = Native.OpenThread(0x0001, false, (uint)localThread.ManagedThreadId);
-                    Native.TerminateThread(handle, 1);
-                    Native.CloseHandle(handle);
+                    if (OperatingSystem.IsWindows())
+                    {
+                        IntPtr handle = Native.OpenThread(0x0001, false, (uint)localThread.ManagedThreadId);
+                        Native.TerminateThread(handle, 1);
+                        Native.CloseHandle(handle);
+                    }
+                    else Trace.WriteLine($"Thread {localThread.Name} did not stop before timeout; unsafe forced termination is disabled on this platform.");
                 }
             }
         }

@@ -1,0 +1,22 @@
+name: macOS OpenTK 2 spike
+
+on:
+  push:
+    paths:
+      - "tools/OpenTK2MacSpike/**"
+      - ".github/workflows/macos-opentk2-spike.yml"
+  pull_request:
+    paths:
+      - "tools/OpenTK2MacSpike/**"
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build tools/OpenTK2MacSpike/OpenTK2MacSpike.csproj -c Release
+      - name: Verify native executable architecture
+        run: file tools/OpenTK2MacSpike/bin/Release/net8.0/osx-arm64/OpenTK2MacSpike

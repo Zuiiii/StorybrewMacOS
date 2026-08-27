@@ -6,7 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Windows.Forms;
+using StorybrewEditor.Platform;
 
 namespace StorybrewEditor
 {
@@ -26,7 +26,7 @@ namespace StorybrewEditor
             }
             catch (Exception e)
             {
-                MessageBox.Show($"\nBuild failed:\n\n{e}", Program.FullName);
+                PlatformServices.ShowError(Program.FullName, $"Build failed:\n\n{e}");
                 return;
             }
 
@@ -36,7 +36,7 @@ namespace StorybrewEditor
             }
             catch (Exception e)
             {
-                MessageBox.Show($"\nUpdate test failed:\n\n{e}", Program.FullName);
+                PlatformServices.ShowError(Program.FullName, $"Update test failed:\n\n{e}");
                 return;
             }
 

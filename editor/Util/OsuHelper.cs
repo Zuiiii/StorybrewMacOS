@@ -8,6 +8,7 @@ namespace StorybrewEditor.Util
     {
         public static string GetOsuExePath()
         {
+            if (!OperatingSystem.IsWindows()) return string.Empty;
             try
             {
                 using (var registryKey = Registry.ClassesRoot.OpenSubKey("osu\\DefaultIcon"))
@@ -36,7 +37,7 @@ namespace StorybrewEditor.Util
         {
             var osuPath = GetOsuExePath();
             if (string.IsNullOrEmpty(osuPath))
-                return Path.GetPathRoot(Environment.CurrentDirectory);
+                return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
             return Path.GetDirectoryName(osuPath);
         }
@@ -45,7 +46,7 @@ namespace StorybrewEditor.Util
         {
             var osuPath = GetOsuExePath();
             if (string.IsNullOrEmpty(osuPath))
-                return Path.GetPathRoot(Environment.CurrentDirectory);
+                return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
             var osuFolder = Path.GetDirectoryName(osuPath);
             var songsFolder = Path.Combine(osuFolder, "Songs");

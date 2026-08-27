@@ -6,3 +6,9 @@
 
 packages/*
 !packages/repositories.config
+# Downloaded proprietary native dependencies (recreated by scripts/fetch-macos-native.sh)
+/native/osx-arm64/*.dylib
+/artifacts/
+/cache/
+/logs/
+/settings.cfg

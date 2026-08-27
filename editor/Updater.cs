@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Windows.Forms;
+using StorybrewEditor.Platform;
 
 namespace StorybrewEditor
 {
@@ -33,7 +33,7 @@ namespace StorybrewEditor
             catch (Exception e)
             {
                 Trace.WriteLine($"Failed to replace files: {e}");
-                MessageBox.Show($"Update failed, please update manually.\n\n{e}", Program.FullName);
+                PlatformServices.ShowError(Program.FullName, $"Update failed, please update manually.\n\n{e}");
                 OpenLastestReleasePage();
                 Program.Report("updatefail", e);
                 return;
@@ -46,7 +46,7 @@ namespace StorybrewEditor
             catch (Exception e)
             {
                 Trace.WriteLine($"Failed to update data: {e}");
-                MessageBox.Show($"Failed to update data.\n\n{e}", Program.FullName);
+                PlatformServices.ShowError(Program.FullName, $"Failed to update data.\n\n{e}");
                 Program.Report("updatefail", e);
             }
 
