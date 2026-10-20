@@ -87,6 +87,22 @@ namespace StorybrewCommon.Scripting
         public Bitmap GetMapsetBitmap(string path, bool watch = true)
             => getBitmap(Path.Combine(context.MapsetPath, path), Path.Combine(context.ProjectAssetPath, path), watch);
 
+        /// <summary>Reads image dimensions on every platform without creating a System.Drawing bitmap.</summary>
+        public BitmapInfo GetMapsetBitmapInfo(string path, bool watch = true)
+        {
+            var source = Path.GetFullPath(Path.Combine(context.MapsetPath, path));
+            if (watch) context.AddDependency(source);
+            if (!File.Exists(source))
+            {
+                source = Path.GetFullPath(Path.Combine(context.ProjectAssetPath, path));
+                if (watch) context.AddDependency(source);
+            }
+            using var stream = BrewLib.Util.Misc.WithRetries(() => File.OpenRead(source));
+            using var codec = SkiaSharp.SKCodec.Create(stream);
+            if (codec == null) throw new InvalidDataException($"Cannot read image '{path}'.");
+            return new BitmapInfo(codec.Info.Width, codec.Info.Height);
+        }
+
         private Bitmap getBitmap(string path, string alternatePath, bool watch)
         {
             path = Path.GetFullPath(path);

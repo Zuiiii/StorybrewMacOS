@@ -871,6 +871,15 @@ namespace StorybrewEditor.Storyboarding
                 throw new InvalidOperationException($"A project already exists at '{projectFolderPath}'");
 
             Directory.CreateDirectory(projectFolderPath);
+            if (MapsetImporter.IsArchive(mapsetPath))
+            {
+                try { mapsetPath = MapsetImporter.Import(mapsetPath, projectFolderPath); }
+                catch
+                {
+                    Directory.Delete(projectFolderPath, true);
+                    throw;
+                }
+            }
             var project = new Project(Path.Combine(projectFolderPath, DefaultTextFilename), withCommonScripts, resourceContainer)
             {
                 MapsetPath = mapsetPath,

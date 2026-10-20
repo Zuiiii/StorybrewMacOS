@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Compile Include="..\editor\Util\MapsetImporter.cs" Link="MapsetImporter.cs" />
   </ItemGroup>
 
 </Project>

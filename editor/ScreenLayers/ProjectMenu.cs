@@ -191,7 +191,7 @@ namespace StorybrewEditor.ScreenLayers
                     {
                         StyleName = "icon",
                         Icon = IconFont.FolderOpen,
-                        Tooltip = "Open mapset folder\n(Right click to change)",
+                        Tooltip = "Open mapset folder\n(Right click to choose a .osu or import a lazer .osz)",
                         AnchorFrom = BoxAlignment.Centre,
                         CanGrow = false,
                     },
@@ -472,10 +472,23 @@ namespace StorybrewEditor.ScreenLayers
             if (!Directory.Exists(initialDirectory))
                 initialDirectory = OsuHelper.GetOsuSongFolder();
 
-            Manager.OpenFilePicker("Pick a new mapset location", "", initialDirectory, ".osu files (*.osu)|*.osu", (newPath) =>
+            Manager.OpenFilePicker("Select a .osu file or import a lazer .osz export", "", initialDirectory, "Beatmaps (*.osu;*.osz)|*.osu;*.osz", (newPath) =>
             {
-                if (!Directory.Exists(newPath) && File.Exists(newPath))
+                if (File.Exists(newPath) && MapsetImporter.IsArchive(newPath))
+                    Manager.AsyncLoading("Importing mapset", () =>
+                    {
+                        var importedPath = MapsetImporter.Import(newPath, project.ProjectFolderPath);
+                        Program.RunMainThread(() =>
+                        {
+                            project.MapsetPath = importedPath;
+                            project.Save();
+                        });
+                    });
+                else if (File.Exists(newPath) && string.Equals(Path.GetExtension(newPath), ".osu", StringComparison.OrdinalIgnoreCase))
+                {
                     project.MapsetPath = Path.GetDirectoryName(newPath);
+                    project.Save();
+                }
                 else Manager.ShowMessage("Invalid mapset path.");
             });
         }

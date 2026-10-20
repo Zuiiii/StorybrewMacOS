@@ -1,4 +1,4 @@
-﻿using BrewLib.Util;
+using BrewLib.Util;
 using OpenTK;
 using OpenTK.Graphics;
 using StorybrewCommon.Storyboarding;
@@ -64,7 +64,7 @@ namespace StorybrewCommon.Subtitles
         public bool Debug;
     }
 
-    public class FontGenerator
+    public partial class FontGenerator
     {
         public string Directory { get; }
         private readonly FontDescription description;
@@ -92,6 +92,7 @@ namespace StorybrewCommon.Subtitles
 
         private FontTexture generateTexture(string text)
         {
+            if (!OperatingSystem.IsWindows()) return generateTextureSkia(text);
             var filename = text.Length == 1 ? $"{(int)text[0]:x4}.png" : $"_{textureCache.Count(l => l.Key.Length > 1):x3}.png";
             var bitmapPath = Path.Combine(assetDirectory, Directory, filename);
 
@@ -238,6 +239,10 @@ namespace StorybrewCommon.Subtitles
 
         private bool matches(TinyToken cachedFontRoot)
         {
+            var renderer = cachedFontRoot.Value<string>("Renderer");
+            if (OperatingSystem.IsWindows() && renderer != null && renderer != "GDI") return false;
+            if (!OperatingSystem.IsWindows() && renderer != "Skia-v2")
+                return false;
             if (cachedFontRoot.Value<string>("FontPath") == description.FontPath &&
                 cachedFontRoot.Value<int>("FontSize") == description.FontSize &&
                 MathUtil.FloatEquals(cachedFontRoot.Value<float>("ColorR"), description.Color.R, 0.00001f) &&
@@ -324,6 +329,7 @@ namespace StorybrewCommon.Subtitles
 
         internal TinyObject ToTinyObject() => new TinyObject
         {
+            { "Renderer", OperatingSystem.IsWindows() ? "GDI" : "Skia-v2" },
             { "FontPath", PathHelper.WithStandardSeparators(description.FontPath) },
             { "FontSize", description.FontSize },
             { "ColorR", description.Color.R },

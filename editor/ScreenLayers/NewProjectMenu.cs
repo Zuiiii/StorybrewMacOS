@@ -42,9 +42,9 @@ namespace StorybrewEditor.ScreenLayers
                     mapsetPathSelector = new PathSelector(WidgetManager, PathSelectorMode.OpenDirectory)
                     {
                         Value = OsuHelper.GetOsuSongFolder(),
-                        LabelText = "Mapset Path",
+                        LabelText = "Mapset folder or lazer .osz export",
                         AnchorFrom = BoxAlignment.Centre,
-                        Filter = ".osu files (*.osu)|*.osu",
+                        Filter = "Beatmaps (*.osu;*.osz)|*.osu;*.osz",
                     },
                     new LinearLayout(WidgetManager)
                     {
@@ -79,7 +79,8 @@ namespace StorybrewEditor.ScreenLayers
             mapsetPathSelector.OnValueChanged += (sender, e) => updateButtonsState();
             mapsetPathSelector.OnValueCommited += (sender, e) =>
             {
-                if (!Directory.Exists(mapsetPathSelector.Value) && File.Exists(mapsetPathSelector.Value))
+                if (!Directory.Exists(mapsetPathSelector.Value) && File.Exists(mapsetPathSelector.Value)
+                    && !MapsetImporter.IsArchive(mapsetPathSelector.Value))
                 {
                     mapsetPathSelector.Value = Path.GetDirectoryName(mapsetPathSelector.Value);
                     return;
@@ -127,6 +128,12 @@ namespace StorybrewEditor.ScreenLayers
             {
                 startButton.Tooltip = $"A project named '{projectFolderName}' already exists";
                 return false;
+            }
+
+            if (File.Exists(mapsetPathSelector.Value) && MapsetImporter.IsArchive(mapsetPathSelector.Value))
+            {
+                startButton.Tooltip = "Import a permanent copy into this project";
+                return true;
             }
 
             if (!Directory.Exists(mapsetPathSelector.Value))
